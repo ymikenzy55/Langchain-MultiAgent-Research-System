@@ -3,6 +3,7 @@ langchain
 langchain-core
 langchain-community
 langchain-groq
+langchain-openai
 
 # Tavily Search Tool
 tavily-python
@@ -16,3 +17,7 @@ readability-lxml
 trafilatura
 requests
 lxml
+
+# API
+fastapi
+uvicorn[standard]
