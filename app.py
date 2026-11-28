@@ -11,7 +11,7 @@ app = FastAPI(title="Research Agent API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -40,10 +40,13 @@ def research(req: ResearchRequest):
     thread.start()
 
     def stream():
-        while True:
-            item = q.get()
-            yield f"data: {json.dumps(item)}\n\n"
-            if item["type"] in ("result", "error"):
-                break
+        try:
+            while True:
+                item = q.get()
+                yield f"data: {json.dumps(item)}\n\n"
+                if item["type"] in ("result", "error"):
+                    break
+        except GeneratorExit:
+            pass
 
     return StreamingResponse(stream(), media_type="text/event-stream")

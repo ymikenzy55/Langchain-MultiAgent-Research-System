@@ -60,7 +60,7 @@ export default function Home() {
     setCompletedSteps([]);
 
     try {
-      const res = await fetch("http://localhost:8080/research", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/research`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic }),
@@ -84,24 +84,32 @@ export default function Home() {
         const lines = buffer.split("\n\n");
         buffer = lines.pop() ?? "";
 
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const parsed = JSON.parse(line.slice(6));
-
-          if (parsed.type === "progress") {
-            const step = parsed.step as StepKey;
-            if (currentStep && currentStep !== step) {
-              setCompletedSteps((prev) => [...prev, currentStep!]);
+        for (const chunk of lines) {
+          for (const line of chunk.split("\n")) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("data: ")) continue;
+            const jsonStr = trimmed.slice(6).trim();
+            if (!jsonStr) continue;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              if (parsed.type === "progress") {
+                const step = parsed.step as StepKey;
+                if (currentStep && currentStep !== step) {
+                  setCompletedSteps((prev) => [...prev, currentStep!]);
+                }
+                currentStep = step;
+                setStatus({ step, message: parsed.message });
+              } else if (parsed.type === "result") {
+                if (currentStep) setCompletedSteps(STEP_ORDER);
+                setStatus(null);
+                setResult(parsed.data);
+                setActiveStep("write");
+              } else if (parsed.type === "error") {
+                throw new Error(parsed.message);
+              }
+            } catch {
+              // skip malformed lines
             }
-            currentStep = step;
-            setStatus({ step, message: parsed.message });
-          } else if (parsed.type === "result") {
-            if (currentStep) setCompletedSteps(STEP_ORDER);
-            setStatus(null);
-            setResult(parsed.data);
-            setActiveStep("write");
-          } else if (parsed.type === "error") {
-            throw new Error(parsed.message);
           }
         }
       }
@@ -171,7 +179,7 @@ export default function Home() {
               </button>
             )}
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
-              Powered by Groq
+              Built by Michael
             </span>
           </div>
         </div>
