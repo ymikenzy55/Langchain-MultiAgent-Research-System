@@ -1,5 +1,5 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+import gradio as gr
+from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from src.pipelines.pipeline import run_research_pipeline
@@ -7,9 +7,15 @@ import json
 import threading
 import queue
 
-app = FastAPI(title="Research Agent API")
+# Mount FastAPI inside Gradio
+app = gr.mount_gradio_app
 
-app.add_middleware(
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+fastapi_app = FastAPI(title="Research Agent API")
+
+fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
@@ -19,7 +25,7 @@ app.add_middleware(
 class ResearchRequest(BaseModel):
     topic: str
 
-@app.post("/research")
+@fastapi_app.post("/research")
 def research(req: ResearchRequest):
     if not req.topic.strip():
         raise HTTPException(status_code=400, detail="Topic cannot be empty")
@@ -50,3 +56,11 @@ def research(req: ResearchRequest):
             pass
 
     return StreamingResponse(stream(), media_type="text/event-stream")
+
+
+# Minimal Gradio UI (required by HF Spaces)
+with gr.Blocks() as demo:
+    gr.Markdown("## Research Agent API")
+    gr.Markdown("This Space exposes a FastAPI backend. Use the frontend at your Vercel URL to interact with it.")
+
+app = gr.mount_gradio_app(fastapi_app, demo, path="/")
